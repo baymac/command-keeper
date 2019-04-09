@@ -1,3 +1,9 @@
+// Import GLib module (library) for file utilities
+const GLib = imports.gi.GLib;
+const Gio = imports.gi.Gio;
+
+let loop = GLib.MainLoop.new(null, false);
+
 /* Import St because is the library that allow you to create UI elements */
 const St = imports.gi.St;
 
@@ -9,6 +15,9 @@ Import Main because is the instance of the class that have all the UI elements
 and we have to add to the Main instance our UI elements
 */
 const Main = imports.ui.main;
+
+/* Import tweener to do the animations of the UI elements */
+const Tweener = imports.ui.tweener;
 
 /*
 Import PanelMenu and PopupMenu 
@@ -45,9 +54,11 @@ const CommandKeeper = new Lang.Class({
 		*/
         this.parent(1, 'CommandKeeper', false);
 
+        this.text = null;
+
         // We are creating a box layout with shell toolkit
         let box = new St.BoxLayout();
-
+    
         /*
 		A new icon 'Terminal'
 		All icons are found in `/usr/share/icons/theme-being-used`
@@ -137,11 +148,13 @@ const CommandKeeper = new Lang.Class({
         });
 
         addBtn.set_x_align(Clutter.ActorAlign.END);
-        addBtn.set_x_expand(true);
+        addBtn.set_x_expand(false);
         addBtn.set_y_expand(true);
 
         that._entryItem.actor.add_child(addBtn);
         that._entryItem.addBtn = addBtn;
+
+        addBtn.connect('button-press-event', that._showHello);
 
         that.menu.addMenuItem(that._entryItem);
 
@@ -161,43 +174,91 @@ const CommandKeeper = new Lang.Class({
 
         that.menu.addMenuItem(that.scrollViewMenuSection);
 
-        // add sample items to history scroll view
-        let menuItem1 = new PopupMenu.PopupMenuItem('');
+        commands = String(GLib.file_get_contents(
+             '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
+         )[1]);
+
+        let commandsArray = commands.split( "\n" );
+
+        let menuItem;
         
-        menuItem1.menu = that.menu;
-        menuItem1.label.set_text('abc');
+        commandsArray.forEach(function (command) {
+            
+            menuItem = new PopupMenu.PopupMenuItem('');
+        
+            menuItem.menu = that.menu;
+            
+            menuItem.label.set_text(command);
 
-        that.menu.addMenuItem(menuItem1);
+            that.menu.addMenuItem(menuItem);
+        })        
 
-        let menuItem2 = new PopupMenu.PopupMenuItem('');
-
-        menuItem2.menu = that.menu;
-        menuItem2.label.set_text('xyz');
-
-        that.menu.addMenuItem(menuItem2);
-
-        that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         },
+        
+
+        _hideHello: function() {
+            Main.uiGroup.remove_actor(text);
+            text = null;
+        },
+        
+        _showHello: function() {
+            /*
+            If text not already present, we create a new UI element, using ST library, that allows us
+            to create UI elements of gnome-shell.
+            */
+            if (!this.text) {
+                text = new St.Label({ style_class: 'helloworld-label', text: "Hello, world!" });
+                Main.uiGroup.add_actor(this.text);
+            }
+        
+            this.text.opacity = 255;
+        
+            /*
+            We have to choose the monitor we want to display the hello world label. Since in gnome-shell
+            always has a primary monitor, we use it(the main monitor)
+            */
+            let monitor = Main.layoutManager.primaryMonitor;
+        
+            /*
+            We change the position of the text to the center of the monitor.
+            */
+           this.text.set_position(monitor.x + Math.floor(monitor.width / 2 - text.width / 2),
+                              monitor.y + Math.floor(monitor.height / 2 - text.height / 2));
+        
+            /*
+            And using tweener for the animations, we indicate to tweener that we want
+            to go to opacity 0%, in 2 seconds, with the type of transition easeOutQuad, and,
+            when this animation has completed, we execute our function _hideHello.
+            */
+            Tweener.addTween(this.text,
+                             { opacity: 0,
+                               time: 2,
+                               transition: 'easeOutQuad',
+                               onComplete: this._hideHello });
+        }
 
 });
 
 /* Global variables for use as button to click */
-let button;
+let commandKeeper;
 
 /*
 This is the init function, here we have to put our code to initialize our extension.
 we have to be careful with init(), enable() and disable() and do the right things here.
 In this case we will do nothing
 */
-function init() {}
+function init() {
+    
+}
 
 /*
 We have to write here our main extension code and the things that actually make works the extension(Add ui elements, signals, etc).
 */
 function enable() {
     /* Create a new object button from class CommandKeeper */
-	button = new CommandKeeper();
+	commandKeeper = new CommandKeeper();
     
     /* 
 	In here we are adding the button in the status area
@@ -206,7 +267,7 @@ function enable() {
 	- 0 is the position
 	- `right` is the box where we want our button to be displayed (left/center/right)
 	 */
-	Main.panel.addToStatusArea('CommandKeeper', button, 0, 'right');
+	Main.panel.addToStatusArea('CommandKeeper', commandKeeper, 1);
 }
 
 /*
