@@ -17,10 +17,15 @@ See more info about these objects in REFERENCE.md
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 
+
 /*
 Import Lang because we will write code in a Object Oriented Manner
 */
 const Lang = imports.lang;
+
+
+
+
 
 /*
 In here we are creating a new Class named `Command Keeper`
@@ -80,17 +85,19 @@ const CommandKeeper = new Lang.Class({
 		// It will be showed in the Top Panel
         this.actor.add_child(box);
 
-        let popupMenuExpander = new PopupMenu.PopupSubMenuMenuItem('Search');
-        let submenu = new PopupMenu.PopupMenuItem('Type here..');
-        popupMenuExpander.menu.addMenuItem(submenu);
-        popupMenuExpander.menu.box.add(new St.Label({text: 'Search your command'}));
+        // let popupMenuExpander = new PopupMenu.PopupSubMenuMenuItem('Search');
+        // let submenu = new PopupMenu.PopupMenuItem('Type here..');
+        // popupMenuExpander.menu.addMenuItem(submenu);
+        // popupMenuExpander.menu.box.add(new St.Label({text: 'Search your command'}));
 
-        // popupMenuExpander.menu.box.style_class = 'PopupSubMenuMenuItemStyle';
+        // // popupMenuExpander.menu.box.style_class = 'PopupSubMenuMenuItemStyle';
 
-        this.menu.addMenuItem(popupMenuExpander);
-        // this.menu.connect('open-state-changed', Lang.bind(this, function(){
-		// 	popupMenuExpander.setSubmenuShown(false);
-		// }));
+        // this.menu.addMenuItem(popupMenuExpander);
+        // // this.menu.connect('open-state-changed', Lang.bind(this, function(){
+		// // 	popupMenuExpander.setSubmenuShown(false);
+        // // }));
+        
+        this._buildMenu();
     },
 
     destroy: function() {
@@ -98,7 +105,34 @@ const CommandKeeper = new Lang.Class({
         This call the parent destroy function
         */
         this.parent();
-    }
+    },
+
+    _buildMenu: function () {
+        let that = this;
+       
+        /* This create the search entry, which is add to a menuItem.
+        The searchEntry is connected to the function for research.
+        The menu itself is connected to some shitty hack in order to
+        grab the focus of the keyboard. */
+        that._entryItem = new PopupMenu.PopupBaseMenuItem({
+            reactive: false,
+            can_focus: false
+        });
+
+        that.searchEntry = new St.Entry({
+            name: 'searchEntry',
+            style_class: 'search-entry',
+            can_focus: true,
+            hint_text: _('Type here to add/search..'),
+            track_hover: true
+        });
+
+        that._entryItem.actor.add(that.searchEntry, {expand: true });
+
+        that.menu.addMenuItem(that._entryItem);
+
+    },
+
 });
 
 /* Global variables for use as button to click */
