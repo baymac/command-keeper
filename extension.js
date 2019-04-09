@@ -123,6 +123,26 @@ const CommandKeeper = new Lang.Class({
 
         that._entryItem.actor.add(that.searchEntry, { expand: true });
 
+        // Add button
+        let iconAdd = new St.Icon({
+            icon_name: 'add',
+            style_class: 'system-status-icon'
+        });
+
+        let addBtn = new St.Button({
+            style_class: 'ci-action-btn',
+            x_fill: true,
+            can_focus: true,
+            child: iconAdd
+        });
+
+        addBtn.set_x_align(Clutter.ActorAlign.END);
+        addBtn.set_x_expand(true);
+        addBtn.set_y_expand(true);
+
+        that._entryItem.actor.add_child(addBtn);
+        that._entryItem.addBtn = addBtn;
+
         that.menu.addMenuItem(that._entryItem);
 
         // History
