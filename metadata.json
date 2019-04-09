@@ -1,0 +1,8 @@
+{
+    "name": "Command Keeper",
+    "description": "Stores the shell commands and let's you copy them when required",
+    "uuid": "Command_Keeper@Baymax",
+    "shell-version": [
+        "3.28.3"
+    ]
+}
