@@ -17,15 +17,10 @@ See more info about these objects in REFERENCE.md
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 
-
 /*
 Import Lang because we will write code in a Object Oriented Manner
 */
 const Lang = imports.lang;
-
-
-
-
 
 /*
 In here we are creating a new Class named `Command Keeper`
@@ -36,7 +31,6 @@ You can see that:
 	-destroy: function{}` is the destructor
 	and you can add more functions to this class if you want to
 */
-
 const CommandKeeper = new Lang.Class({
     Name: 'CommandKeeper',
     Extends: PanelMenu.Button,
@@ -127,11 +121,44 @@ const CommandKeeper = new Lang.Class({
             track_hover: true
         });
 
-        that._entryItem.actor.add(that.searchEntry, {expand: true });
+        that._entryItem.actor.add(that.searchEntry, { expand: true });
 
         that.menu.addMenuItem(that._entryItem);
 
-    },
+        // History
+        that.historySection = new PopupMenu.PopupMenuSection();
+
+        that.scrollViewMenuSection =  new PopupMenu.PopupMenuSection();
+
+        let historyScrollView = new St.ScrollView({
+            style_class: 'ci-history-menu-section',
+            overlay_scrollbars: true
+        });
+
+        historyScrollView.add_actor(that.historySection.actor);
+
+        that.scrollViewMenuSection.actor.add_actor(historyScrollView);
+
+        that.menu.addMenuItem(that.scrollViewMenuSection);
+
+        // add sample items to history scroll view
+        let menuItem1 = new PopupMenu.PopupMenuItem('');
+        
+        menuItem1.menu = that.menu;
+        menuItem1.label.set_text('abc');
+
+        that.menu.addMenuItem(menuItem1);
+
+        let menuItem2 = new PopupMenu.PopupMenuItem('');
+
+        menuItem2.menu = that.menu;
+        menuItem2.label.set_text('xyz');
+
+        that.menu.addMenuItem(menuItem2);
+
+        that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        },
 
 });
 
