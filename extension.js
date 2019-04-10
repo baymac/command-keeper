@@ -33,6 +33,9 @@ See more info about these objects in REFERENCE.md
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 
+const Clipboard = St.Clipboard.get_default();
+const CLIPBOARD_TYPE = St.ClipboardType.CLIPBOARD;
+
 /*
 Import Lang because we will write code in a Object Oriented Manner
 */
@@ -62,6 +65,8 @@ const CommandKeeper = new Lang.Class({
         this.parent(1, 'CommandKeeper', false);
 
         this.text = null;
+
+        this.clipItemsRadioGroup = [];
 
         // We are creating a box layout with shell toolkit
         let box = new St.BoxLayout();
@@ -189,61 +194,79 @@ const CommandKeeper = new Lang.Class({
 
         that.menu.addMenuItem(that._entryItem);
 
-        this._populateCommands();
+         // History
+        that.historySection = new PopupMenu.PopupMenuSection();
+
+        that.scrollViewMenuSection =  new PopupMenu.PopupMenuSection();
+
+        let historyScrollView = new St.ScrollView({
+            style_class: 'ci-history-menu-section',
+            overlay_scrollbars: true
+        });
+
+        historyScrollView.add_actor(that.historySection.actor);
+
+        that.scrollViewMenuSection.actor.add_actor(historyScrollView);
+
+        that.menu.addMenuItem(that.scrollViewMenuSection);
+
+
+        var commands = String(GLib.file_get_contents(
+            '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
+        )[1]);
+
+        let commandsArray = commands.split( '\n' );
+
+
+        commandsArray.forEach((command) => {
+            // if ( typeof command === 'string') {
+            // }
+            that._addEntry(command);
+        })        
     },
 
     _onSearchTextChanged: function() {
         this.final_text = that.searchEntry.get_text().toLowerCase();
     },
 
-    _populateCommands: function() {
+    _addEntry: function(command) {
         // var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
         // var iter = cmd.create_iter();
-        let that = this;
-        var commands = "";
 
         // while (iter.move_next()) {
         //     var command_field = Gda.value_stringify(iter.get_value_at(1));
         //     commands += command_field + '\n';
         // }
 
-        commands = String(GLib.file_get_contents(
-             '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
-         )[1]);
-
-        that.commandsArray = commands.split( '\n' );
-
-        that._secondaryItem = new PopupMenu.PopupBaseMenuItem({
-            reactive: false,
-            can_focus: false
-        });
-
-         // History
-         that.historySection = new PopupMenu.PopupMenuSection();
-
-         that.scrollViewMenuSection =  new PopupMenu.PopupMenuSection();
- 
-         let historyScrollView = new St.ScrollView({
-             style_class: 'ci-history-menu-section',
-             overlay_scrollbars: true
-         });
- 
-         historyScrollView.add_actor(that.historySection.actor);
- 
-         that.scrollViewMenuSection.actor.add_actor(historyScrollView);
- 
-         that.menu.addMenuItem(that.scrollViewMenuSection);
-
-         that.commandsArray.forEach(function (command) {
-             
-            var menuItem = new PopupMenu.PopupMenuItem('');
+        let menuItem = new PopupMenu.PopupMenuItem('');
         
-            menuItem.menu = that.menu;
-            
-            menuItem.label.set_text(command);
+        menuItem.menu = this.menu;
 
-            that.menu.addMenuItem(menuItem);
-         })        
+        menuItem.clipContents = command;
+
+        menuItem.radioGroup = this.clipItemsRadioGroup;
+
+        menuItem.buttonPressId = menuItem.connect('activate',
+            Lang.bind(menuItem, this._onMenuItemSelectedAndMenuClose));
+        
+        menuItem.label.set_text(command);
+
+        this.clipItemsRadioGroup.push(menuItem);
+
+        this.menu.addMenuItem(menuItem);
+
+    
+    },
+
+    _onMenuItemSelectedAndMenuClose: function () {
+        var that = this;
+
+        let clipContents = that.clipContents;
+        log(clipContents);
+
+        Clipboard.set_text(CLIPBOARD_TYPE, clipContents);
+        
+        that.menu.close();
     },
 
     // _insertClicked: function() {
