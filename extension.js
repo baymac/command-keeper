@@ -1,5 +1,3 @@
-imports.searchPath.unshift(".");
-
 // Import GLib module (library) for file utilities
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
@@ -8,7 +6,7 @@ const Gio = imports.gi.Gio;
 GNOME Data Access (GDA) is library whose purpose is to provide universal access to different kinds and types of data sources
 from traditional relational database systems, to any imaginable kind of data source such as a mail server, a LDAP directory, etc
 */
-const Gda = imports.gi.Gda;
+// const Gda = imports.gi.Gda;
 
 
 let loop = GLib.MainLoop.new(null, false);
@@ -111,7 +109,7 @@ const CommandKeeper = new Lang.Class({
 		// // 	popupMenuExpander.setSubmenuShown(false);
         // // }));
         
-        this._setupDb();
+        // this._setupDb();
         this._buildMenu();
     },
 
@@ -122,19 +120,19 @@ const CommandKeeper = new Lang.Class({
         this.parent();
     },
 
-    _setupDb: function() {
-        this.connection = new Gda.Connection (
-            {
-                provider: Gda.Config.get_provider("SQLite"),
-                cnc_string: "DB_DIR=" + GLib.get_home_dir () + ";DB_NAME=commands_db"
-            }
-        );
-        try {
-            var cmd = this.connection.execute_select_command ("select * from commands");
-        } catch (e) {
-            this.connection.execute_non_select_command ("create table commands (id integer, name varchar(1000))");
-        }
-    },
+    // _setupDb: function() {
+    //     this.connection = new Gda.Connection (
+    //         {
+    //             provider: Gda.Config.get_provider("SQLite"),
+    //             cnc_string: "DB_DIR=" + GLib.get_home_dir () + ";DB_NAME=commands_db"
+    //         }
+    //     );
+    //     try {
+    //         var cmd = this.connection.execute_select_command ("select * from commands");
+    //     } catch (e) {
+    //         this.connection.execute_non_select_command ("create table commands (id integer, name varchar(1000))");
+    //     }
+    // },
 
     _buildMenu: function () {
         let that = this;
@@ -184,74 +182,81 @@ const CommandKeeper = new Lang.Class({
         that._entryItem.addBtn = addBtn;
 
         addBtn.connect(
-            'button-press-event', 
-            Lang.bind(that, that._insertClicked)
+            'button-press-event', () => {
+                that._showHello();
+            }
         );
 
         that.menu.addMenuItem(that._entryItem);
 
-        // History
-        that.historySection = new PopupMenu.PopupMenuSection();
-
-        that.scrollViewMenuSection =  new PopupMenu.PopupMenuSection();
-
-        let historyScrollView = new St.ScrollView({
-            style_class: 'ci-history-menu-section',
-            overlay_scrollbars: true
-        });
-
-        historyScrollView.add_actor(that.historySection.actor);
-
-        that.scrollViewMenuSection.actor.add_actor(historyScrollView);
-
-        that.menu.addMenuItem(that.scrollViewMenuSection);
-
-        // commands = String(GLib.file_get_contents(
-        //      '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
-        //  )[1]);
-
-        var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
-        var iter = cmd.create_iter();
-
-        var commands = "";
-
-        while (iter.move_next()) {
-            var command_field = Gda.value_stringify(iter.get_value_at(1));
-            commands += command_field + '\n';
-        }
-
-        let commandsArray = commands.split( '\n' );
-
-        let menuItem;
-        
-        commandsArray.forEach(function (command) {
-            
-            menuItem = new PopupMenu.PopupMenuItem('');
-        
-            menuItem.menu = that.menu;
-            
-            menuItem.label.set_text(command);
-
-            that.menu.addMenuItem(menuItem);
-        })        
-
+        this._populateCommands();
     },
 
     _onSearchTextChanged: function() {
         this.final_text = that.searchEntry.get_text().toLowerCase();
     },
 
-    _insertClicked: function() {
-        var b = new Gda.SqlBuilder({
-                stmt_type: Gda.SqlStatementType.INSERT
-            }
-        );
-        b.set_table("commands");
-        b.add_field_value_as_gvalue("id", Math.floor(Math.random()));
-        b.add_field_value_as_gvalue("name", this.final_text);
-        var stmt = b.get_statement();
-        this.connection.statement_execute_non_select(stmt, null);
+    _populateCommands: function() {
+        // var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
+        // var iter = cmd.create_iter();
+        let that = this;
+        var commands = "";
+
+        // while (iter.move_next()) {
+        //     var command_field = Gda.value_stringify(iter.get_value_at(1));
+        //     commands += command_field + '\n';
+        // }
+
+        commands = String(GLib.file_get_contents(
+             '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
+         )[1]);
+
+        that.commandsArray = commands.split( '\n' );
+
+        that._secondaryItem = new PopupMenu.PopupBaseMenuItem({
+            reactive: false,
+            can_focus: false
+        });
+
+         // History
+         that.historySection = new PopupMenu.PopupMenuSection();
+
+         that.scrollViewMenuSection =  new PopupMenu.PopupMenuSection();
+ 
+         let historyScrollView = new St.ScrollView({
+             style_class: 'ci-history-menu-section',
+             overlay_scrollbars: true
+         });
+ 
+         historyScrollView.add_actor(that.historySection.actor);
+ 
+         that.scrollViewMenuSection.actor.add_actor(historyScrollView);
+ 
+         that.menu.addMenuItem(that.scrollViewMenuSection);
+
+         that.commandsArray.forEach(function (command) {
+             
+            var menuItem = new PopupMenu.PopupMenuItem('');
+        
+            menuItem.menu = that.menu;
+            
+            menuItem.label.set_text(command);
+
+            that.menu.addMenuItem(menuItem);
+         })        
     },
+
+    // _insertClicked: function() {
+    //     var b = new Gda.SqlBuilder({
+    //             stmt_type: Gda.SqlStatementType.INSERT
+    //         }
+    //     );
+    //     b.set_table("commands");
+    //     b.add_field_value_as_gvalue("id", Math.floor(Math.random()));
+    //     b.add_field_value_as_gvalue("name", this.final_text);
+    //     var stmt = b.get_statement();
+    //     this.connection.statement_execute_non_select(stmt, null);
+    // },
 
     _hideHello: function() {
         Main.uiGroup.remove_actor(this.text);
