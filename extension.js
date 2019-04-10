@@ -6,7 +6,7 @@ const Gio = imports.gi.Gio;
 GNOME Data Access (GDA) is library whose purpose is to provide universal access to different kinds and types of data sources
 from traditional relational database systems, to any imaginable kind of data source such as a mail server, a LDAP directory, etc
 */
-// const Gda = imports.gi.Gda;
+const Gda = imports.gi.Gda;
 
 
 let loop = GLib.MainLoop.new(null, false);
@@ -66,10 +66,10 @@ const CommandKeeper = new Lang.Class({
 
         this.text = null;
 
-        this.clipItemsRadioGroup = [];
+        this.commands = '';
 
         // We are creating a box layout with shell toolkit
-        let box = new St.BoxLayout();
+        let box = new St.BoxLayout({ style_class: 'panel-status-menu-box '});
     
         /*
 		A new icon 'Terminal'
@@ -101,20 +101,8 @@ const CommandKeeper = new Lang.Class({
         // We add the box to the button
 		// It will be showed in the Top Panel
         this.actor.add_child(box);
-
-        // let popupMenuExpander = new PopupMenu.PopupSubMenuMenuItem('Search');
-        // let submenu = new PopupMenu.PopupMenuItem('Type here..');
-        // popupMenuExpander.menu.addMenuItem(submenu);
-        // popupMenuExpander.menu.box.add(new St.Label({text: 'Search your command'}));
-
-        // // popupMenuExpander.menu.box.style_class = 'PopupSubMenuMenuItemStyle';
-
-        // this.menu.addMenuItem(popupMenuExpander);
-        // // this.menu.connect('open-state-changed', Lang.bind(this, function(){
-		// // 	popupMenuExpander.setSubmenuShown(false);
-        // // }));
         
-        // this._setupDb();
+        this._setupDb();
         this._buildMenu();
     },
 
@@ -125,19 +113,20 @@ const CommandKeeper = new Lang.Class({
         this.parent();
     },
 
-    // _setupDb: function() {
-    //     this.connection = new Gda.Connection (
-    //         {
-    //             provider: Gda.Config.get_provider("SQLite"),
-    //             cnc_string: "DB_DIR=" + GLib.get_home_dir () + ";DB_NAME=commands_db"
-    //         }
-    //     );
-    //     try {
-    //         var cmd = this.connection.execute_select_command ("select * from commands");
-    //     } catch (e) {
-    //         this.connection.execute_non_select_command ("create table commands (id integer, name varchar(1000))");
-    //     }
-    // },
+    _setupDb: function() {
+        this.connection = new Gda.Connection (
+            {
+                provider: Gda.Config.get_provider("SQLite"),
+                cnc_string: "DB_DIR=" + GLib.get_home_dir() + ";DB_NAME=commands_db"
+            }
+        );
+        this.connection.open ();
+        try {
+            var cmd = this.connection.execute_select_command ("select * from commands");
+        } catch (e) {
+            this.connection.execute_non_select_command ("create table commands (id integer, name varchar(100))");
+        }
+    },
 
     _buildMenu: function () {
         let that = this;
@@ -188,13 +177,13 @@ const CommandKeeper = new Lang.Class({
 
         addBtn.connect(
             'button-press-event', () => {
-                that._showHello();
+                that._insertClicked();
             }
         );
 
         that.menu.addMenuItem(that._entryItem);
 
-         // History
+        // History
         that.historySection = new PopupMenu.PopupMenuSection();
 
         that.scrollViewMenuSection =  new PopupMenu.PopupMenuSection();
@@ -210,13 +199,19 @@ const CommandKeeper = new Lang.Class({
 
         that.menu.addMenuItem(that.scrollViewMenuSection);
 
+        // this.commands += String(GLib.file_get_contents(
+        //     '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
+        // )[1]);
 
-        var commands = String(GLib.file_get_contents(
-            '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
-        )[1]);
+        var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
+        var iter = cmd.create_iter();
 
-        let commandsArray = commands.split( '\n' );
+        while (iter.move_next()) {
+            var command_field = Gda.value_stringify(iter.get_value_at(1));
+            this.commands += command_field + '\n';
+        }
 
+        let commandsArray = this.commands.split( '\n' );
 
         commandsArray.forEach((command) => {
             // if ( typeof command === 'string') {
@@ -226,17 +221,10 @@ const CommandKeeper = new Lang.Class({
     },
 
     _onSearchTextChanged: function() {
-        this.final_text = that.searchEntry.get_text().toLowerCase();
+        this.final_text = this.searchEntry.get_text().toLowerCase();
     },
 
     _addEntry: function(command) {
-        // var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
-        // var iter = cmd.create_iter();
-
-        // while (iter.move_next()) {
-        //     var command_field = Gda.value_stringify(iter.get_value_at(1));
-        //     commands += command_field + '\n';
-        // }
 
         let menuItem = new PopupMenu.PopupMenuItem('');
         
@@ -244,18 +232,13 @@ const CommandKeeper = new Lang.Class({
 
         menuItem.clipContents = command;
 
-        menuItem.radioGroup = this.clipItemsRadioGroup;
-
         menuItem.buttonPressId = menuItem.connect('activate',
             Lang.bind(menuItem, this._onMenuItemSelectedAndMenuClose));
         
         menuItem.label.set_text(command);
 
-        this.clipItemsRadioGroup.push(menuItem);
-
         this.menu.addMenuItem(menuItem);
 
-    
     },
 
     _onMenuItemSelectedAndMenuClose: function () {
@@ -269,17 +252,31 @@ const CommandKeeper = new Lang.Class({
         that.menu.close();
     },
 
-    // _insertClicked: function() {
-    //     var b = new Gda.SqlBuilder({
-    //             stmt_type: Gda.SqlStatementType.INSERT
-    //         }
-    //     );
-    //     b.set_table("commands");
-    //     b.add_field_value_as_gvalue("id", Math.floor(Math.random()));
-    //     b.add_field_value_as_gvalue("name", this.final_text);
-    //     var stmt = b.get_statement();
-    //     this.connection.statement_execute_non_select(stmt, null);
-    // },
+    _insertClicked: function() {
+
+        let final_text = this.searchEntry.get_text().toLowerCase();
+
+        if(final_text === '') {
+            return;
+        }
+
+        this.commands += final_text + '\n';
+
+        this._addEntry(final_text);
+
+        var b = new Gda.SqlBuilder({
+                stmt_type: Gda.SqlStatementType.INSERT
+            }
+        );
+        b.set_table("commands");
+        b.add_field_value_as_gvalue("id", Math.floor(Math.random()));
+        b.add_field_value_as_gvalue("name", final_text);
+        var stmt = b.get_statement();
+        this.connection.statement_execute_non_select(stmt, null);
+
+        log(this.commands);
+        this.searchEntry.set_text('');
+    },
 
     _hideHello: function() {
         Main.uiGroup.remove_actor(this.text);
