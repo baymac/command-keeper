@@ -1,6 +1,15 @@
+imports.searchPath.unshift(".");
+
 // Import GLib module (library) for file utilities
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
+
+/*
+GNOME Data Access (GDA) is library whose purpose is to provide universal access to different kinds and types of data sources
+from traditional relational database systems, to any imaginable kind of data source such as a mail server, a LDAP directory, etc
+*/
+const Gda = imports.gi.Gda;
+
 
 let loop = GLib.MainLoop.new(null, false);
 
@@ -102,6 +111,7 @@ const CommandKeeper = new Lang.Class({
 		// // 	popupMenuExpander.setSubmenuShown(false);
         // // }));
         
+        this._setupDb();
         this._buildMenu();
     },
 
@@ -110,6 +120,20 @@ const CommandKeeper = new Lang.Class({
         This call the parent destroy function
         */
         this.parent();
+    },
+
+    _setupDb: function() {
+        this.connection = new Gda.Connection (
+            {
+                provider: Gda.Config.get_provider("SQLite"),
+                cnc_string: "DB_DIR=" + GLib.get_home_dir () + ";DB_NAME=commands_db"
+            }
+        );
+        try {
+            var cmd = this.connection.execute_select_command ("select * from commands");
+        } catch (e) {
+            this.connection.execute_non_select_command ("create table commands (id integer, name varchar(1000))");
+        }
     },
 
     _buildMenu: function () {
@@ -131,6 +155,11 @@ const CommandKeeper = new Lang.Class({
             hint_text: _('Type here to add/search..'),
             track_hover: true
         });
+
+        that.searchEntry.get_clutter_text().connect(
+            'text-changed',
+            Lang.bind(that, that._onSearchTextChanged)
+        );
 
         that._entryItem.actor.add(that.searchEntry, { expand: true });
 
@@ -154,7 +183,10 @@ const CommandKeeper = new Lang.Class({
         that._entryItem.actor.add_child(addBtn);
         that._entryItem.addBtn = addBtn;
 
-        addBtn.connect('button-press-event', that._showHello);
+        addBtn.connect(
+            'button-press-event', 
+            Lang.bind(that, that._insertClicked)
+        );
 
         that.menu.addMenuItem(that._entryItem);
 
@@ -174,11 +206,21 @@ const CommandKeeper = new Lang.Class({
 
         that.menu.addMenuItem(that.scrollViewMenuSection);
 
-        commands = String(GLib.file_get_contents(
-             '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
-         )[1]);
+        // commands = String(GLib.file_get_contents(
+        //      '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
+        //  )[1]);
 
-        let commandsArray = commands.split( "\n" );
+        var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
+        var iter = cmd.create_iter();
+
+        var commands = "";
+
+        while (iter.move_next()) {
+            var command_field = Gda.value_stringify(iter.get_value_at(1));
+            commands += command_field + '\n';
+        }
+
+        let commandsArray = commands.split( '\n' );
 
         let menuItem;
         
@@ -193,52 +235,66 @@ const CommandKeeper = new Lang.Class({
             that.menu.addMenuItem(menuItem);
         })        
 
-        // that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    },
 
-        },
-        
+    _onSearchTextChanged: function() {
+        this.final_text = that.searchEntry.get_text().toLowerCase();
+    },
 
-        _hideHello: function() {
-            Main.uiGroup.remove_actor(text);
-            text = null;
-        },
-        
-        _showHello: function() {
-            /*
-            If text not already present, we create a new UI element, using ST library, that allows us
-            to create UI elements of gnome-shell.
-            */
-            if (!this.text) {
-                text = new St.Label({ style_class: 'helloworld-label', text: "Hello, world!" });
-                Main.uiGroup.add_actor(this.text);
+    _insertClicked: function() {
+        var b = new Gda.SqlBuilder({
+                stmt_type: Gda.SqlStatementType.INSERT
             }
-        
-            this.text.opacity = 255;
-        
-            /*
-            We have to choose the monitor we want to display the hello world label. Since in gnome-shell
-            always has a primary monitor, we use it(the main monitor)
-            */
-            let monitor = Main.layoutManager.primaryMonitor;
-        
-            /*
-            We change the position of the text to the center of the monitor.
-            */
-           this.text.set_position(monitor.x + Math.floor(monitor.width / 2 - text.width / 2),
-                              monitor.y + Math.floor(monitor.height / 2 - text.height / 2));
-        
-            /*
-            And using tweener for the animations, we indicate to tweener that we want
-            to go to opacity 0%, in 2 seconds, with the type of transition easeOutQuad, and,
-            when this animation has completed, we execute our function _hideHello.
-            */
-            Tweener.addTween(this.text,
-                             { opacity: 0,
-                               time: 2,
-                               transition: 'easeOutQuad',
-                               onComplete: this._hideHello });
-        }
+        );
+        b.set_table("commands");
+        b.add_field_value_as_gvalue("id", Math.floor(Math.random()));
+        b.add_field_value_as_gvalue("name", this.final_text);
+        var stmt = b.get_statement();
+        this.connection.statement_execute_non_select(stmt, null);
+    },
 
+    _hideHello: function() {
+        Main.uiGroup.remove_actor(this.text);
+    },
+    
+    _showHello: function() {
+        /*
+        We create a new UI element, using ST library, that allows us
+        to create UI elements of gnome-shell.
+        */
+        
+        let final_text = this.searchEntry.get_text().toLowerCase();
+        
+        this.text = new St.Label({ style_class: 'helloworld-label', text: final_text});
+        Main.uiGroup.add_actor(this.text);
+        
+        this.text.opacity = 255;
+    
+        /*
+        We have to choose the monitor we want to display the hello world label. Since in gnome-shell
+        always has a primary monitor, we use it(the main monitor)
+        */
+        let monitor = Main.layoutManager.primaryMonitor;
+    
+        /*
+        We change the position of the text to the center of the monitor.
+        */
+        this.text.set_position(monitor.x + Math.floor(monitor.width / 2 - this.text.width / 2),
+                            monitor.y + Math.floor(monitor.height / 2 - this.text.height / 2));
+    
+        /*
+        And using tweener for the animations, we indicate to tweener that we want
+        to go to opacity 0%, in 2 seconds, with the type of transition easeOutQuad, and,
+        when this animation has completed, we execute our function _hideHello.
+        */
+        Tweener.addTween(this.text, { 
+                opacity: 0,
+                time: 2,
+                transition: 'easeOutQuad',
+                onComplete: this._hideHello 
+            }
+        );
+    }
 });
 
 /* Global variables for use as button to click */
