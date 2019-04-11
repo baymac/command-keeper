@@ -224,22 +224,22 @@ const CommandKeeper = new Lang.Class({
     },
 
     _onSearchTextChanged: function() {
-        this.final_text = this.searchEntry.get_text().toLowerCase();
-
+        let final_text = this.searchEntry.get_text().toLowerCase();
+        log(final_text);
         log(this._getAllIMenuItems());
 
-        // if(this.final_text === '') {
-        //     this._getAllIMenuItems().forEach(function(mItem){
-        //         mItem.actor.visible = true;
-        //     });
-        // }
-        // else {
-        //     this._getAllIMenuItems().forEach(function(mItem){
-        //         let text = mItem.clipContents.toLowerCase();
-        //         let isMatching = text.indexOf(searchedText) >= 0;
-        //         mItem.actor.visible = isMatching
-        //     });
-        // }
+        if(final_text === '') {
+            this._getAllIMenuItems().forEach(function(mItem){
+                mItem.actor.visible = true;
+            });
+        }
+        else {
+            this._getAllIMenuItems().forEach(function(mItem){
+                let text = mItem.clipContents.toLowerCase();
+                let isMatching = text.indexOf(final_text) >= 0;
+                mItem.actor.visible = isMatching
+            });
+        }
     },
 
     _addEntry: function(command) {
