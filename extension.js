@@ -124,7 +124,7 @@ const CommandKeeper = new Lang.Class({
         try {
             var cmd = this.connection.execute_select_command ("select * from commands");
         } catch (e) {
-            this.connection.execute_non_select_command ("create table commands (id integer, name varchar(100))");
+            this.connection.execute_non_select_command ("create table commands (id integer, name varchar(100 ))");
         }
     },
 
@@ -157,9 +157,10 @@ const CommandKeeper = new Lang.Class({
 
         // Add button
         let iconAdd = new St.Icon({
-            icon_name: 'add',
-            style_class: 'system-status-icon'
+            icon_name: 'list-add-symbolic',
+            style_class: 'system-status-icon add-color'
         });
+
 
         let addBtn = new St.Button({
             style_class: 'ci-action-btn',
@@ -169,7 +170,7 @@ const CommandKeeper = new Lang.Class({
         });
 
         addBtn.set_x_align(Clutter.ActorAlign.END);
-        addBtn.set_x_expand(false);
+        addBtn.set_x_expand(true);
         addBtn.set_y_expand(true);
 
         that._entryItem.actor.add_child(addBtn);
@@ -214,9 +215,10 @@ const CommandKeeper = new Lang.Class({
         let commandsArray = this.commands.split( '\n' );
 
         commandsArray.forEach((command) => {
-            // if ( typeof command === 'string') {
-            // }
-            that._addEntry(command);
+            if ( typeof command === 'string') {
+                that._addEntry(command);
+            }
+            // TODO return error for incorrect characters
         })        
     },
     _getAllIMenuItems: function (text) {
@@ -225,8 +227,6 @@ const CommandKeeper = new Lang.Class({
 
     _onSearchTextChanged: function() {
         let final_text = this.searchEntry.get_text().toLowerCase();
-        log(final_text);
-        log(this._getAllIMenuItems());
 
         if(final_text === '') {
             this._getAllIMenuItems().forEach(function(mItem){
@@ -263,7 +263,7 @@ const CommandKeeper = new Lang.Class({
         });
 
         let delBtn = new St.Button({
-            style_class: 'ci-action-btn',
+            style_class: 'ci-action-btn del-color',
             x_fill: true,
             can_focus: true,
             child: icoDel

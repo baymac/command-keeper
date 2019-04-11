@@ -1,14 +1,17 @@
-.PopupSubMenuMenuItemStyle {
-	margin: 10px;
-	padding-left: 20px;
-}
-
 .ci-history-menu-section {
     max-height:450px;
 }
 
 .ci-action-btn StIcon {
     icon-size:16px;
+}
+
+.del-color {
+    color: #bb3016;
+}
+
+.add-color {
+    color: #44945e;           
 }
 
 .helloworld-label {
