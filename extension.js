@@ -69,7 +69,7 @@ const CommandKeeper = new Lang.Class({
         this.commands = '';
 
         // We are creating a box layout with shell toolkit
-        let box = new St.BoxLayout({ style_class: 'panel-status-menu-box '});
+        let box = new St.BoxLayout({ style_class: 'panel-status-menu-box'});
     
         /*
 		A new icon 'Terminal'
@@ -219,9 +219,27 @@ const CommandKeeper = new Lang.Class({
             that._addEntry(command);
         })        
     },
+    _getAllIMenuItems: function (text) {
+        return this.historySection._getMenuItems();
+    },
 
     _onSearchTextChanged: function() {
         this.final_text = this.searchEntry.get_text().toLowerCase();
+
+        log(this._getAllIMenuItems());
+
+        // if(this.final_text === '') {
+        //     this._getAllIMenuItems().forEach(function(mItem){
+        //         mItem.actor.visible = true;
+        //     });
+        // }
+        // else {
+        //     this._getAllIMenuItems().forEach(function(mItem){
+        //         let text = mItem.clipContents.toLowerCase();
+        //         let isMatching = text.indexOf(searchedText) >= 0;
+        //         mItem.actor.visible = isMatching
+        //     });
+        // }
     },
 
     _addEntry: function(command) {
@@ -237,7 +255,31 @@ const CommandKeeper = new Lang.Class({
         
         menuItem.label.set_text(command);
 
-        this.menu.addMenuItem(menuItem);
+        this.historySection.addMenuItem(menuItem, 0);
+
+        let icoDel = new St.Icon({
+            icon_name: 'edit-delete-symbolic', //'mail-attachment-symbolic',
+            style_class: 'system-status-icon'
+        });
+
+        let delBtn = new St.Button({
+            style_class: 'ci-action-btn',
+            x_fill: true,
+            can_focus: true,
+            child: icoDel
+        });
+
+        delBtn.set_x_align(Clutter.ActorAlign.END);
+        delBtn.set_x_expand(true);
+        delBtn.set_y_expand(true);
+
+        menuItem.actor.add_child(delBtn);
+        menuItem.delBtn = delBtn;
+
+        menuItem.deletePressId = delBtn.connect('button-press-event', () => {
+                this._showHello();
+            }
+        );
 
     },
 
@@ -287,10 +329,9 @@ const CommandKeeper = new Lang.Class({
         We create a new UI element, using ST library, that allows us
         to create UI elements of gnome-shell.
         */
+    
         
-        let final_text = this.searchEntry.get_text().toLowerCase();
-        
-        this.text = new St.Label({ style_class: 'helloworld-label', text: final_text});
+        this.text = new St.Label({ style_class: 'helloworld-label', text: 'hello, world'});
         Main.uiGroup.add_actor(this.text);
         
         this.text.opacity = 255;
