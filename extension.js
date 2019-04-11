@@ -360,12 +360,6 @@ const CommandKeeper = new Lang.Class({
 
         this.searchEntry.set_text('');
     },
-
-    _hideHello: function() {
-        Main.uiGroup.remove_actor(this.text);
-    },
-    
-    _showHello: function() {
         /*
         We create a new UI element, using ST library, that allows us
         to create UI elements of gnome-shell.
