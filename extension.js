@@ -8,8 +8,7 @@ from traditional relational database systems, to any imaginable kind of data sou
 */
 const Gda = imports.gi.Gda;
 
-
-let loop = GLib.MainLoop.new(null, false);
+const Mainloop   = imports.mainloop;
 
 /* Import St because is the library that allow you to create UI elements */
 const St = imports.gi.St;
@@ -66,8 +65,6 @@ const CommandKeeper = new Lang.Class({
 
         this.text = null;
 
-        this.commands = '';
-
         // We are creating a box layout with shell toolkit
         let box = new St.BoxLayout({ style_class: 'panel-status-menu-box'});
     
@@ -78,8 +75,7 @@ const CommandKeeper = new Lang.Class({
 
 		The class 'system-status-icon` is very useful, remove it and restart the shell then you will see why it is useful here
         */
-        this.icon = new St.Icon(
-            { 
+        this.icon = new St.Icon({ 
                 icon_name: 'go-previous-rtl-symbolic'
             }
         );
@@ -103,6 +99,7 @@ const CommandKeeper = new Lang.Class({
         this.actor.add_child(box);
         
         this._setupDb();
+        
         this._buildMenu();
     },
 
@@ -113,6 +110,10 @@ const CommandKeeper = new Lang.Class({
         this.parent();
     },
 
+    _dropTable: function() {
+        this.connection.execute_non_select_command("drop table commands");
+    },
+
     _setupDb: function() {
         this.connection = new Gda.Connection (
             {
@@ -120,11 +121,11 @@ const CommandKeeper = new Lang.Class({
                 cnc_string: "DB_DIR=" + GLib.get_home_dir() + ";DB_NAME=commands_db"
             }
         );
-        this.connection.open ();
+        this.connection.open();
         try {
             var cmd = this.connection.execute_select_command ("select * from commands");
         } catch (e) {
-            this.connection.execute_non_select_command ("create table commands (id integer, name varchar(100 ))");
+            this.connection.execute_non_select_command ("create table commands (id integer primary key autoincrement, name varchar(100))");
         }
     },
 
@@ -155,6 +156,19 @@ const CommandKeeper = new Lang.Class({
 
         that._entryItem.actor.add(that.searchEntry, { expand: true });
 
+        that.menu.addMenuItem(that._entryItem);
+
+        // highlight the search box upon openning command menu
+        that.menu.connect('open-state-changed', Lang.bind(this, function(self, open){
+            let a = Mainloop.timeout_add(50, Lang.bind(this, function() {
+                if (open) {
+                    that.searchEntry.set_text('');
+                    global.stage.set_key_focus(that.searchEntry);
+                }
+                Mainloop.source_remove(a);
+            }));
+        }));
+
         // Add button
         let iconAdd = new St.Icon({
             icon_name: 'list-add-symbolic',
@@ -182,8 +196,6 @@ const CommandKeeper = new Lang.Class({
             }
         );
 
-        that.menu.addMenuItem(that._entryItem);
-
         // History
         that.historySection = new PopupMenu.PopupMenuSection();
 
@@ -204,24 +216,39 @@ const CommandKeeper = new Lang.Class({
         //     '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
         // )[1]);
 
-        var cmd = this.connection.execute_select_command ("select * from commands order by 1, 2");
-        var iter = cmd.create_iter();
+        let cmd = this.connection.execute_select_command ("select * from commands order by 2");
+        let iter = cmd.create_iter();
+
+        let commands = '';
+        let ids = '';
 
         while (iter.move_next()) {
-            var command_field = Gda.value_stringify(iter.get_value_at(1));
-            this.commands += command_field + '\n';
+            ids += Gda.value_stringify(iter.get_value_at(0)) + '\n';
+            commands += Gda.value_stringify(iter.get_value_at(1)) + '\n';
         }
 
-        let commandsArray = this.commands.split( '\n' );
+        let idsArray= (ids.split('\n'));
 
-        commandsArray.forEach((command) => {
-            if ( typeof command === 'string') {
-                that._addEntry(command);
-            }
-            // TODO return error for incorrect characters
-        })        
+        log(idsArray);
+
+        let commandsArray = commands.split('\n');
+        
+        log(commandsArray.length);
+
+        // reducing the loop by 1 because an extra line is added due to concatenation
+        for(var i = 0; i < commandsArray.length-1; i++) {
+            that._addEntry(commandsArray[i], idsArray[i]);
+        }
+
+        // commandsArray.forEach((command) => {
+        //     if ( typeof command === 'string') {
+        //         that._addEntry(command);
+        //     }
+        //     // TODO return error for incorrect characters
+        // })
+        
     },
-    _getAllIMenuItems: function (text) {
+    _getAllIMenuItems: function () {
         return this.historySection._getMenuItems();
     },
 
@@ -242,12 +269,15 @@ const CommandKeeper = new Lang.Class({
         }
     },
 
-    _addEntry: function(command) {
+    _addEntry: function(command, id) {
 
+        if (command === '') {
+            return;
+        }
         let menuItem = new PopupMenu.PopupMenuItem('');
         
         menuItem.menu = this.menu;
-
+        menuItem.id = id;
         menuItem.clipContents = command;
 
         menuItem.buttonPressId = menuItem.connect('activate',
@@ -276,18 +306,22 @@ const CommandKeeper = new Lang.Class({
         menuItem.actor.add_child(delBtn);
         menuItem.delBtn = delBtn;
 
-        menuItem.deletePressId = delBtn.connect('button-press-event', () => {
-                this._showHello();
-            }
+        menuItem.deletePressId = delBtn.connect('button-press-event', 
+            Lang.bind(this, function () {
+                this._removeEntry(menuItem, 'delete');
+            })
         );
+    },
 
+    _removeEntry: function(menuItem, event) {
+        this.connection.execute_non_select_command("delete from commands where id = " + menuItem.id);
+        menuItem.destroy();
     },
 
     _onMenuItemSelectedAndMenuClose: function () {
         var that = this;
 
         let clipContents = that.clipContents;
-        log(clipContents);
 
         Clipboard.set_text(CLIPBOARD_TYPE, clipContents);
         
@@ -302,8 +336,6 @@ const CommandKeeper = new Lang.Class({
             return;
         }
 
-        this.commands += final_text + '\n';
-
         this._addEntry(final_text);
 
         var b = new Gda.SqlBuilder({
@@ -311,12 +343,10 @@ const CommandKeeper = new Lang.Class({
             }
         );
         b.set_table("commands");
-        b.add_field_value_as_gvalue("id", Math.floor(Math.random()));
         b.add_field_value_as_gvalue("name", final_text);
         var stmt = b.get_statement();
         this.connection.statement_execute_non_select(stmt, null);
 
-        log(this.commands);
         this.searchEntry.set_text('');
     },
 
