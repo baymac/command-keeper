@@ -35,6 +35,8 @@ const PopupMenu = imports.ui.popupMenu;
 const Clipboard = St.Clipboard.get_default();
 const CLIPBOARD_TYPE = St.ClipboardType.CLIPBOARD;
 
+let MAX_ENTRY_LENGTH = 40;
+
 /*
 Import Lang because we will write code in a Object Oriented Manner
 */
@@ -175,7 +177,6 @@ const CommandKeeper = new Lang.Class({
             style_class: 'system-status-icon add-color'
         });
 
-
         let addBtn = new St.Button({
             style_class: 'ci-action-btn',
             x_fill: true,
@@ -212,10 +213,6 @@ const CommandKeeper = new Lang.Class({
 
         that.menu.addMenuItem(that.scrollViewMenuSection);
 
-        // this.commands += String(GLib.file_get_contents(
-        //     '/home/parichay/.local/share/gnome-shell/extensions/Command_Keeper@Baymax/commands.txt',
-        // )[1]);
-
         let cmd = this.connection.execute_select_command ("select * from commands order by 2");
         let iter = cmd.create_iter();
 
@@ -229,6 +226,10 @@ const CommandKeeper = new Lang.Class({
 
         let idsArray= (ids.split('\n'));
 
+
+        // getting the max id to update the id of the menuitem at the time of creation 
+        this.lastId = Math.max(...idsArray);
+
         log(idsArray);
 
         let commandsArray = commands.split('\n');
@@ -239,15 +240,9 @@ const CommandKeeper = new Lang.Class({
         for(var i = 0; i < commandsArray.length-1; i++) {
             that._addEntry(commandsArray[i], idsArray[i]);
         }
-
-        // commandsArray.forEach((command) => {
-        //     if ( typeof command === 'string') {
-        //         that._addEntry(command);
-        //     }
-        //     // TODO return error for incorrect characters
-        // })
         
     },
+
     _getAllIMenuItems: function () {
         return this.historySection._getMenuItems();
     },
@@ -269,6 +264,20 @@ const CommandKeeper = new Lang.Class({
         }
     },
 
+    _truncate: function(string, length) {
+        let shortened = string.replace(/\s+/g, ' ');
+
+        if (shortened.length > length)
+            shortened = shortened.substring(0,length-1) + '...';
+
+        return shortened;
+    },
+
+    _setEntryLabel: function (menuItem) {
+        let buffer = menuItem.clipContents;
+        menuItem.label.set_text(this._truncate(buffer, MAX_ENTRY_LENGTH));
+    },
+
     _addEntry: function(command, id) {
 
         if (command === '') {
@@ -283,7 +292,7 @@ const CommandKeeper = new Lang.Class({
         menuItem.buttonPressId = menuItem.connect('activate',
             Lang.bind(menuItem, this._onMenuItemSelectedAndMenuClose));
         
-        menuItem.label.set_text(command);
+        this._setEntryLabel(menuItem);
 
         this.historySection.addMenuItem(menuItem, 0);
 
@@ -335,13 +344,15 @@ const CommandKeeper = new Lang.Class({
         if(final_text === '') {
             return;
         }
+        this.lastId += 1;
 
-        this._addEntry(final_text);
+        this._addEntry(final_text, this.lastId);
 
         var b = new Gda.SqlBuilder({
                 stmt_type: Gda.SqlStatementType.INSERT
             }
         );
+
         b.set_table("commands");
         b.add_field_value_as_gvalue("name", final_text);
         var stmt = b.get_statement();
