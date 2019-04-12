@@ -360,43 +360,8 @@ const CommandKeeper = new Lang.Class({
 
         this.searchEntry.set_text('');
     },
-        /*
-        We create a new UI element, using ST library, that allows us
-        to create UI elements of gnome-shell.
-        */
-    
-        
-        this.text = new St.Label({ style_class: 'helloworld-label', text: 'hello, world'});
-        Main.uiGroup.add_actor(this.text);
-        
-        this.text.opacity = 255;
-    
-        /*
-        We have to choose the monitor we want to display the hello world label. Since in gnome-shell
-        always has a primary monitor, we use it(the main monitor)
-        */
-        let monitor = Main.layoutManager.primaryMonitor;
-    
-        /*
-        We change the position of the text to the center of the monitor.
-        */
-        this.text.set_position(monitor.x + Math.floor(monitor.width / 2 - this.text.width / 2),
-                            monitor.y + Math.floor(monitor.height / 2 - this.text.height / 2));
-    
-        /*
-        And using tweener for the animations, we indicate to tweener that we want
-        to go to opacity 0%, in 2 seconds, with the type of transition easeOutQuad, and,
-        when this animation has completed, we execute our function _hideHello.
-        */
-        Tweener.addTween(this.text, { 
-                opacity: 0,
-                time: 2,
-                transition: 'easeOutQuad',
-                onComplete: this._hideHello 
-            }
-        );
-    }
 });
+
 
 /* Global variables for use as button to click */
 let commandKeeper;
