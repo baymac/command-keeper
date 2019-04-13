@@ -248,7 +248,7 @@ const CommandKeeper = new Lang.Class({
     },
 
     _onSearchTextChanged: function() {
-        let final_text = this.searchEntry.get_text().toLowerCase();
+        let final_text = this.searchEntry.get_text();
 
         if(final_text === '') {
             this._getAllIMenuItems().forEach(function(mItem){
@@ -257,7 +257,7 @@ const CommandKeeper = new Lang.Class({
         }
         else {
             this._getAllIMenuItems().forEach(function(mItem){
-                let text = mItem.clipContents.toLowerCase();
+                let text = mItem.clipContents;
                 let isMatching = text.indexOf(final_text) >= 0;
                 mItem.actor.visible = isMatching
             });
@@ -339,7 +339,7 @@ const CommandKeeper = new Lang.Class({
 
     _insertClicked: function() {
 
-        let final_text = this.searchEntry.get_text().toLowerCase();
+        let final_text = this.searchEntry.get_text();
 
         if(final_text === '') {
             return;
